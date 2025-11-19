@@ -20,15 +20,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    console.log('🚀 [AUTH PROVIDER] useEffect started')
     let mounted = true
 
     // Initialize auth session - ONE session check for entire app
     const initialize = async () => {
+      console.log('🔄 [AUTH PROVIDER] initialize() called')
       // Check if we're in browser environment
       if (typeof window === 'undefined') {
+        console.log('⚠️ [AUTH PROVIDER] Not in browser, skipping')
         setLoading(false)
         return
       }
+      
+      console.log('✅ [AUTH PROVIDER] In browser, proceeding with initialization')
       
       try {
         // Try getSession() first (reads from localStorage/cookies, faster)
@@ -37,6 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         let sessionError = null
         
         try {
+          console.log('📡 [AUTH PROVIDER] Calling getSession()...')
           // Add timeout to getSession() too in case it hangs
           const sessionPromise = supabase.auth.getSession()
           const sessionTimeoutPromise = new Promise<never>((_, reject) => 
@@ -46,7 +52,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const sessionResult = await Promise.race([sessionPromise, sessionTimeoutPromise])
           session = sessionResult.data?.session || null
           sessionError = sessionResult.error || null
+          console.log('✅ [AUTH PROVIDER] getSession() completed', {
+            hasSession: !!session,
+            hasUser: !!session?.user,
+            error: sessionError?.message,
+          })
         } catch (sessionTimeoutError: any) {
+          console.warn('⚠️ [AUTH PROVIDER] getSession() timed out:', sessionTimeoutError.message)
           sessionError = sessionTimeoutError
           
           // Try reading from localStorage directly as fallback
@@ -69,8 +81,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         // If we have a session, use it immediately
         if (session?.user) {
+          console.log('✅ [AUTH PROVIDER] Found session via getSession()', {
+            userId: session.user.id,
+            email: session.user.email,
+          })
           setUser(session.user)
           setLoading(false) // Set loading false early so UI can render
+          console.log('✅ [AUTH PROVIDER] Set user and loading=false')
           
           // Then validate with getUser() in background
           supabase.auth.getUser()
@@ -120,10 +137,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         
         // If no session, try getUser() as fallback (validates with server)
+        console.log('📡 [AUTH PROVIDER] No session found, trying getUser()...')
         let authUser = null
         let error = null
         
         try {
+          console.log('⏱️ [AUTH PROVIDER] Calling getUser() with 5s timeout...')
           // Add timeout to prevent hanging
           const getUserPromise = supabase.auth.getUser()
           const timeoutPromise = new Promise<never>((_, reject) => 
@@ -133,20 +152,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const result = await Promise.race([getUserPromise, timeoutPromise])
           authUser = result.data?.user || null
           error = result.error || null
+          console.log('✅ [AUTH PROVIDER] getUser() completed', {
+            hasUser: !!authUser,
+            userId: authUser?.id,
+            error: error?.message,
+          })
         } catch (timeoutError: any) {
-          console.error('getUser() timed out or failed:', timeoutError)
+          console.error('❌ [AUTH PROVIDER] getUser() timed out or failed:', timeoutError.message)
           error = timeoutError
         }
         
         if (!mounted) return
         
         if (error) {
-          console.error('getUser() error:', error)
+          console.error('❌ [AUTH PROVIDER] getUser() error:', error.message)
+          console.log('🔄 [AUTH PROVIDER] Setting loading=false due to error')
           setLoading(false)
           return
         }
         
         if (authUser) {
+          console.log('✅ [AUTH PROVIDER] Found user via getUser()', {
+            userId: authUser.id,
+            email: authUser.email,
+          })
           setUser(authUser)
           
           // Ensure user record exists (non-blocking)
@@ -180,10 +209,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         
         // Always set loading to false after checking session
+        console.log('🔄 [AUTH PROVIDER] Setting loading=false (end of initialize)')
         setLoading(false)
       } catch (error) {
-        console.error('Init exception:', error)
+        console.error('❌ [AUTH PROVIDER] Init exception:', error)
         if (mounted) {
+          console.log('🔄 [AUTH PROVIDER] Setting loading=false due to exception')
           setLoading(false)
         }
       }
@@ -191,22 +222,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // CRITICAL: Set up auth state change listener FIRST
     // This listener fires immediately with current session and is more reliable than manual initialization
+    console.log('🎧 [AUTH PROVIDER] Setting up auth state change listener...')
     let listenerInitialized = false
     let listenerFired = false
     
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('🔔 [AUTH PROVIDER] Auth state changed:', {
+          event,
+          hasSession: !!session,
+          hasUser: !!session?.user,
+          userId: session?.user?.id,
+        })
         listenerFired = true
         
-        if (!mounted) return
+        if (!mounted) {
+          console.log('⚠️ [AUTH PROVIDER] Component unmounted, ignoring auth state change')
+          return
+        }
 
         // Mark listener as initialized
         if (!listenerInitialized) {
           listenerInitialized = true
+          console.log('✅ [AUTH PROVIDER] Auth state listener initialized')
         }
         
         // Always set loading to false when auth state changes (recovery mechanism)
         // This ensures UI doesn't hang even if initialization failed
+        console.log('🔄 [AUTH PROVIDER] Setting loading=false (auth state change)')
         setLoading(false)
 
         if (session?.user) {
@@ -239,6 +282,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // This prevents UI from hanging if listener is delayed
     const immediateFallback = setTimeout(() => {
       if (mounted && !listenerFired) {
+        console.log('⏰ [AUTH PROVIDER] Immediate fallback (500ms) - listener not fired, setting loading=false')
         setLoading(false)
       }
     }, 500)
@@ -247,16 +291,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // The auth state change listener will update the user when it fires
     const safetyTimeout = setTimeout(() => {
       if (mounted) {
+        console.log('⏰ [AUTH PROVIDER] Safety timeout (2s) - setting loading=false')
         setLoading(false)
       }
     }, 2000) // 2 second safety timeout
 
     // Run initialization in background (non-blocking)
     // The auth state listener above will handle setting the user
+    console.log('🚀 [AUTH PROVIDER] Starting initialization...')
     initialize().finally(() => {
+      console.log('✅ [AUTH PROVIDER] Initialization finished')
       clearTimeout(safetyTimeout)
       clearTimeout(immediateFallback)
       if (mounted && !listenerInitialized) {
+        console.warn('⚠️ [AUTH PROVIDER] Listener never initialized, setting loading=false')
         // Ensure loading is false even if listener didn't fire
         setLoading(false)
       }

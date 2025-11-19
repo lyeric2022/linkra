@@ -13,13 +13,27 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const { loading, user } = useAuthContext()
   const pathname = usePathname()
   
+  console.log('🛡️ [AUTH GUARD] Render:', {
+    pathname,
+    loading,
+    hasUser: !!user,
+    userId: user?.id,
+  })
+  
   // Public routes that don't need auth
   const publicRoutes = ['/auth', '/rankings', '/leaderboard', '/']
   const isPublicRoute = publicRoutes.includes(pathname) || pathname.startsWith('/startup/')
 
+  console.log('🛡️ [AUTH GUARD] Route check:', {
+    pathname,
+    isPublicRoute,
+    shouldShowLoading: loading && !isPublicRoute,
+  })
+
   // Show loading only on protected routes while auth initializes
   // Public routes can render immediately
   if (loading && !isPublicRoute) {
+    console.log('⏳ [AUTH GUARD] Showing loading spinner (protected route)')
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
         <div className="text-center">
@@ -31,6 +45,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   }
 
   // Render children - middleware handles route protection
+  console.log('✅ [AUTH GUARD] Rendering children')
   return <>{children}</>
 }
 

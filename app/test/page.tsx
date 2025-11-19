@@ -61,8 +61,19 @@ export default function TestPage() {
       try {
         console.log('🔐 [TEST] Checking auth session...')
         
-        // Auth is now handled by global AuthProvider - just read the session
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+        // Auth is now handled by global AuthProvider - just read the session with timeout
+        const sessionPromise = supabase.auth.getSession()
+        const timeoutPromise = new Promise<never>((_, reject) => 
+          setTimeout(() => reject(new Error('getSession() timeout after 3s')), 3000)
+        )
+        
+        const { data: { session }, error: sessionError } = await Promise.race([
+          sessionPromise,
+          timeoutPromise
+        ]).catch(err => {
+          console.error('🔴 [TEST] Session check timed out:', err)
+          return { data: { session: null }, error: err }
+        }) as any
 
         if (sessionError) {
           console.error('🔴 [TEST] Session error:', sessionError)
