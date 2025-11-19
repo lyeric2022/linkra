@@ -11,6 +11,7 @@ const nextConfig = {
   turbopack: {
     root: __dirname,
   },
+  // Environment variables are configured in Vercel Dashboard
 }
 
 export default nextConfig
