@@ -1,0 +1,49 @@
+{
+  "name": "linkra",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx scripts/dev-with-migrations.ts",
+    "dev:no-migrate": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "seed": "tsx scripts/seed-startups.ts",
+    "migrate": "tsx scripts/migrate.ts",
+    "fix-users": "tsx scripts/fix-users.ts",
+    "grant-shares": "tsx scripts/grant-shares-to-existing-users.ts",
+    "check-welcome-shares": "tsx scripts/check-welcome-shares.ts",
+    "check-elo": "tsx scripts/check-elo-decreases.ts",
+    "reset-db": "tsx scripts/reset-database.ts",
+    "check-db": "tsx -e \"import('./lib/db/migrate.js').then(m => m.checkDatabaseSetup())\"",
+    "capture-price-history": "tsx scripts/capture-price-history.ts"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.7.0",
+    "@supabase/supabase-js": "^2.81.1",
+    "@types/pg": "^8.15.6",
+    "next": "^16.0.3",
+    "pg": "^8.16.3",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "recharts": "^3.4.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.6",
+    "@types/react-dom": "^19.2.3",
+    "autoprefixer": "^10.4.22",
+    "dotenv": "^17.2.3",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.3"
+  }
+}

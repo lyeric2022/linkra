@@ -1,0 +1,11 @@
+{
+  "buildCommand": "bun run build",
+  "devCommand": "bun run dev:no-migrate",
+  "installCommand": "bun install",
+  "framework": "nextjs",
+  "regions": ["iad1"],
+  "env": {
+    "NODE_ENV": "production"
+  }
+}
+
