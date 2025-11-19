@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import Auth from '@/components/Auth'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuthContext } from '@/lib/contexts/AuthContext'
 
-export default function AuthPage() {
+function AuthPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, loading } = useAuthContext() // Use single source of truth
@@ -42,6 +42,20 @@ export default function AuthPage() {
         <Auth />
       </div>
     </div>
+  )
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense fallback={
+      <div className="container mx-auto px-4 py-16">
+        <div className="max-w-md mx-auto text-center">
+          <div className="text-gray-600 dark:text-gray-400">Loading...</div>
+        </div>
+      </div>
+    }>
+      <AuthPageContent />
+    </Suspense>
   )
 }
 

@@ -49,17 +49,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (!mounted) return
           
           // Fetch profile (non-blocking)
-          supabase
-            .from('users')
-            .select('*')
-            .eq('id', authUser.id)
-            .single()
-            .then(({ data: profile }) => {
+          Promise.resolve(
+            supabase
+              .from('users')
+              .select('*')
+              .eq('id', authUser.id)
+              .single()
+          )
+            .then(({ data: profile, error }) => {
+              if (error) {
+                console.error('🔴 [AuthProvider] Failed to load profile:', error)
+                return
+              }
               if (mounted && profile) {
                 setUserProfile(profile)
               }
             })
-            .catch(err => {
+            .catch((err: any) => {
               console.error('🔴 [AuthProvider] Failed to load profile:', err)
             })
         }

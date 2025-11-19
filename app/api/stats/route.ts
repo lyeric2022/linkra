@@ -36,13 +36,20 @@ export async function GET() {
       .single()
 
     // Get startups with most comparisons
-    const { data: topStartups, error: topError } = await supabase
-      .rpc('get_startup_comparison_counts')
-      .limit(10)
-      .catch(() => {
-        // If RPC doesn't exist, return empty
-        return { data: null, error: null }
-      })
+    // Wrap in try/catch in case RPC function doesn't exist
+    let topStartups = null
+    let topError = null
+    try {
+      const result = await supabase
+        .rpc('get_startup_comparison_counts')
+        .limit(10)
+      topStartups = result.data
+      topError = result.error
+    } catch (err) {
+      // If RPC doesn't exist, return empty
+      topStartups = null
+      topError = null
+    }
 
     return NextResponse.json({
       comparisons: {
