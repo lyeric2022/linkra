@@ -1,11 +1,10 @@
-import { createBrowserClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 
 /**
  * Client-side Supabase client for use in Client Components
  * 
- * Note: This client uses localStorage by default, but getUser() makes HTTP requests
- * that automatically include cookies set by server-side (middleware, OAuth callback).
- * This ensures session synchronization between server and client.
+ * Using regular createClient instead of createBrowserClient from @supabase/ssr
+ * because createBrowserClient has issues with hanging requests.
  * 
  * Usage in Client Components:
  * ```ts
@@ -24,26 +23,24 @@ console.log('🔧 [SUPABASE CLIENT] Initializing...', {
   keyPrefix: supabaseAnonKey ? `${supabaseAnonKey.substring(0, 20)}...` : 'MISSING',
   keyLength: supabaseAnonKey?.length || 0,
   isBrowser: typeof window !== 'undefined',
-  allEnvVars: typeof window !== 'undefined' ? Object.keys(process.env) : 'server',
 })
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('❌ [SUPABASE CLIENT] Missing Supabase environment variables:', {
-    hasUrl: !!supabaseUrl,
-    hasKey: !!supabaseAnonKey,
-    url: supabaseUrl ? `${supabaseUrl.substring(0, 20)}...` : 'MISSING',
-  })
-  console.error('💡 [SUPABASE CLIENT] Make sure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are set in Vercel')
-  console.error('💡 [SUPABASE CLIENT] Go to: Vercel Dashboard → Your Project → Settings → Environment Variables')
+  console.error('❌ [SUPABASE CLIENT] Missing Supabase environment variables')
 }
 
-// Create client - if env vars are missing, it will fail with clear errors
-export const supabase = createBrowserClient(
+// Use regular createClient - more reliable than createBrowserClient
+export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder-key'
+  supabaseAnonKey || 'placeholder-key',
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+    }
+  }
 )
 
-console.log('✅ [SUPABASE CLIENT] Client created', {
-  url: supabaseUrl ? 'SET' : 'MISSING',
-  key: supabaseAnonKey ? 'SET' : 'MISSING',
-})
+console.log('✅ [SUPABASE CLIENT] Client created with regular createClient')
