@@ -57,21 +57,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             hasUser: !!session?.user,
             error: sessionError?.message,
           })
+          
+          // Check if session is expired
+          if (session?.expires_at) {
+            const expiresAt = session.expires_at * 1000 // Convert to ms
+            const now = Date.now()
+            const isExpired = expiresAt < now
+            
+            if (isExpired) {
+              console.warn('⚠️ [AUTH PROVIDER] Session expired, clearing and will let listener handle it')
+              // Clear the expired session
+              await supabase.auth.signOut({ scope: 'local' })
+              session = null
+            }
+          }
         } catch (sessionTimeoutError: any) {
           console.warn('⚠️ [AUTH PROVIDER] getSession() timed out:', sessionTimeoutError.message)
           sessionError = sessionTimeoutError
           
-          // Try reading from localStorage directly as fallback
+          // Try reading from localStorage directly as fallback to check for expired tokens
           try {
             const storageKey = `sb-${process.env.NEXT_PUBLIC_SUPABASE_URL?.split('//')[1]?.split('.')[0]}-auth-token`
             const storedSession = localStorage.getItem(storageKey)
             if (storedSession) {
               const parsed = JSON.parse(storedSession)
-              if (parsed?.access_token) {
-                // Don't set user here - let auth state change listener handle it
-                // Just set loading to false so UI can render
-                setLoading(false)
-                return
+              if (parsed?.expires_at) {
+                const expiresAt = parsed.expires_at * 1000
+                const isExpired = expiresAt < Date.now()
+                
+                if (isExpired) {
+                  console.warn('⚠️ [AUTH PROVIDER] Found expired token in localStorage, clearing it')
+                  // Clear expired token
+                  await supabase.auth.signOut({ scope: 'local' })
+                  setLoading(false)
+                  return
+                } else if (parsed?.access_token) {
+                  // Valid token exists, let listener handle it
+                  setLoading(false)
+                  return
+                }
               }
             }
           } catch (storageError) {
@@ -319,17 +343,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signOut = async () => {
+    console.log('🚪 [AUTH PROVIDER] Signing out...')
     try {
-      const { error } = await supabase.auth.signOut()
-      if (error) {
-        console.error('Sign out error:', error)
+      // Add timeout to signOut in case it hangs
+      const signOutPromise = supabase.auth.signOut()
+      const timeoutPromise = new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('signOut() timeout after 3s')), 3000)
+      )
+      
+      try {
+        await Promise.race([signOutPromise, timeoutPromise])
+        console.log('✅ [AUTH PROVIDER] Sign out completed')
+      } catch (timeoutError) {
+        console.warn('⚠️ [AUTH PROVIDER] Sign out timed out, forcing local clear:', timeoutError)
+        // Force clear locally even if server call times out
+        await supabase.auth.signOut({ scope: 'local' })
       }
+      
+      // Always clear state
       setUser(null)
       setUserProfile(null)
+      
+      // Redirect to home page
+      if (typeof window !== 'undefined') {
+        window.location.href = '/'
+      }
     } catch (err) {
-      console.error('Sign out exception:', err)
+      console.error('❌ [AUTH PROVIDER] Sign out exception:', err)
+      // Force clear state and redirect anyway
       setUser(null)
       setUserProfile(null)
+      if (typeof window !== 'undefined') {
+        window.location.href = '/'
+      }
     }
   }
 
