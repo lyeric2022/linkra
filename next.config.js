@@ -8,10 +8,8 @@ const __dirname = dirname(__filename)
 const nextConfig = {
   reactStrictMode: true,
   // Explicitly set Turbopack root to current directory to avoid lockfile detection issues
-  experimental: {
-    turbo: {
-      root: __dirname,
-    },
+  turbopack: {
+    root: __dirname,
   },
 }
 
