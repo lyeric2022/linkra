@@ -40,13 +40,15 @@ export async function GET() {
     let topStartups = null
     let topError = null
     try {
-      const result = await supabase
-      .rpc('get_startup_comparison_counts')
-      .limit(10)
+      const result = await supabase.rpc('get_startup_comparison_counts')
       topStartups = result.data
       topError = result.error
+      // Limit to top 10 if we got results
+      if (topStartups && Array.isArray(topStartups)) {
+        topStartups = topStartups.slice(0, 10)
+      }
     } catch (err) {
-        // If RPC doesn't exist, return empty
+      // If RPC doesn't exist, return empty
       topStartups = null
       topError = null
     }
