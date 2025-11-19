@@ -49,25 +49,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (!mounted) return
           
           // Fetch profile (non-blocking)
-          Promise.resolve(
-            supabase
-              .from('users')
-              .select('*')
-              .eq('id', authUser.id)
-              .single()
-          )
-            .then(({ data: profile, error }) => {
+          // Use async IIFE to properly handle promise
+          ;(async () => {
+            try {
+              const { data: profile, error } = await supabase
+                .from('users')
+                .select('*')
+                .eq('id', authUser.id)
+                .single()
+              
               if (error) {
                 console.error('🔴 [AuthProvider] Failed to load profile:', error)
                 return
               }
+              
               if (mounted && profile) {
                 setUserProfile(profile)
               }
-            })
-            .catch((err: any) => {
+            } catch (err: any) {
               console.error('🔴 [AuthProvider] Failed to load profile:', err)
-            })
+            }
+          })()
         }
         
         // Always set loading to false after checking session
