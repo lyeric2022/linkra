@@ -10,7 +10,7 @@ function getSupabaseClient() {
     throw new Error('Missing Supabase environment variables')
   }
 
-  // Use service role key to bypass RLS for API operations
+// Use service role key to bypass RLS for API operations
   return createClient(supabaseUrl, supabaseServiceKey)
 }
 

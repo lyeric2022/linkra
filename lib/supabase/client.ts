@@ -20,8 +20,11 @@ console.log('🔧 [SUPABASE CLIENT] Initializing...', {
   hasUrl: !!supabaseUrl,
   hasKey: !!supabaseAnonKey,
   url: supabaseUrl ? `${supabaseUrl.substring(0, 30)}...` : 'MISSING',
+  urlFull: supabaseUrl || 'MISSING',
   keyPrefix: supabaseAnonKey ? `${supabaseAnonKey.substring(0, 20)}...` : 'MISSING',
+  keyLength: supabaseAnonKey?.length || 0,
   isBrowser: typeof window !== 'undefined',
+  allEnvVars: typeof window !== 'undefined' ? Object.keys(process.env) : 'server',
 })
 
 if (!supabaseUrl || !supabaseAnonKey) {

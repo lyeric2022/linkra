@@ -48,7 +48,7 @@ export async function GET() {
         topStartups = topStartups.slice(0, 10)
       }
     } catch (err) {
-      // If RPC doesn't exist, return empty
+        // If RPC doesn't exist, return empty
       topStartups = null
       topError = null
     }

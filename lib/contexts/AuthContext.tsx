@@ -93,9 +93,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   return
                 } else if (parsed?.access_token) {
                   // Valid token exists, let listener handle it
-                  setLoading(false)
-                  return
-                }
+          setLoading(false)
+          return
+        }
               }
             }
           } catch (storageError) {
@@ -141,7 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           supabase
             .from('users')
             .select('*')
-              .eq('id', session.user.id)
+            .eq('id', session.user.id)
             .single()
           )
             .then(({ data: profile, error: profileError }) => {
@@ -371,8 +371,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error('❌ [AUTH PROVIDER] Sign out exception:', err)
       // Force clear state and redirect anyway
-      setUser(null)
-      setUserProfile(null)
+    setUser(null)
+    setUserProfile(null)
       if (typeof window !== 'undefined') {
         window.location.href = '/'
       }
