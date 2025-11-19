@@ -2,12 +2,12 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 /**
- * Middleware for Next.js App Router
+ * Proxy for Next.js App Router
  * - Refreshes user sessions automatically (critical for SSR)
  * - Protects routes that require authentication
  * - Handles auth redirects
  */
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
   let supabaseResponse = NextResponse.next({
@@ -35,7 +35,7 @@ export async function middleware(request: NextRequest) {
   )
 
   // IMPORTANT: Refresh session if expired - this ensures Server Components get valid sessions
-  // This is the key difference - middleware refreshes sessions automatically
+  // This is the key difference - proxy refreshes sessions automatically
   const {
     data: { user },
     error: authError
