@@ -41,12 +41,12 @@ export async function GET() {
     let topError = null
     try {
       const result = await supabase
-        .rpc('get_startup_comparison_counts')
-        .limit(10)
+      .rpc('get_startup_comparison_counts')
+      .limit(10)
       topStartups = result.data
       topError = result.error
     } catch (err) {
-      // If RPC doesn't exist, return empty
+        // If RPC doesn't exist, return empty
       topStartups = null
       topError = null
     }

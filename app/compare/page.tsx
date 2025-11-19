@@ -108,7 +108,6 @@ export default function ComparePage() {
         seenStartupIds.add(comp.startup_b_id)
       })
 
-      console.log(`📊 [COMPARE] User has seen ${seenStartupIds.size} unique startups`)
 
       setLoadingMessage('Finding available startups...')
       
@@ -146,11 +145,10 @@ export default function ComparePage() {
         availableCount = count || 0
       }
       
-      console.log(`📊 [COMPARE] ${availableCount} startups available (excluding ${seenStartupIds.size} already seen)`)
 
       // If not enough new startups available, allow duplicates
       if (availableCount < 2 && !allowDuplicates) {
-        console.log('⚠️  [COMPARE] Not enough new startups, allowing duplicates')
+        // Allow duplicates if not enough new startups
       }
 
       setLoadingMessage('Selecting startups to compare...')
@@ -189,7 +187,7 @@ export default function ComparePage() {
         if (candidateStartups && candidateStartups.length > 0) {
           const availableStartups = candidateStartups.filter(s => !seenStartupIds.has(s.id))
           if (availableStartups.length > 0) {
-            baseStartup = availableStartups[Math.floor(Math.random() * availableStartups.length)]
+          baseStartup = availableStartups[Math.floor(Math.random() * availableStartups.length)]
           }
         }
       }
@@ -210,11 +208,11 @@ export default function ComparePage() {
         .gte('elo_rating', baseElo - eloRange)
         .lte('elo_rating', baseElo + eloRange)
         .limit(10) // Get 10 candidates
-      
+
       if (batchFilter && batchFilter !== 'all') {
         opponentQuery = opponentQuery.eq('batch', batchFilter)
       }
-
+      
       const { data: similarStartups, error: similarError } = await opponentQuery
       
       if (similarError) {
@@ -238,12 +236,11 @@ export default function ComparePage() {
       if (randomOpponent) {
         startups.push(randomOpponent)
       } else {
-        console.log('⚠️  [COMPARE] No similar opponent found, getting random...')
         let fallbackQuery = supabase
           .from('startups')
           .select('*')
           .neq('id', baseStartup.id)
-        
+
         if (batchFilter && batchFilter !== 'all') {
           fallbackQuery = fallbackQuery.eq('batch', batchFilter)
         }
@@ -260,8 +257,8 @@ export default function ComparePage() {
           
           if (availableCandidates.length > 0) {
             const randomCandidate = availableCandidates[Math.floor(Math.random() * availableCandidates.length)]
-            startups.push(randomCandidate)
-          } else {
+          startups.push(randomCandidate)
+        } else {
             // No available candidates, fall through to use any startup
           }
         }
@@ -314,22 +311,19 @@ export default function ComparePage() {
           comparison_count: counts.get(startup.id) || 0,
         }))
         
-        console.log(`✅ [COMPARE] Selected pair: ${enrichedStartups[0].name} vs ${enrichedStartups[1].name}`)
         return [enrichedStartups[0] as Startup, enrichedStartups[1] as Startup]
       } else {
         // Not enough startups in database
-        console.warn('⚠️  [COMPARE] Need at least 2 startups in database')
         return null
       }
     } catch (error) {
-      console.error('❌ [COMPARE] Error fetching comparison:', error)
+      console.error('Error fetching comparison:', error)
       return null
     }
   }
 
   const loadComparisonWithUserId = async (currentUserId: string, isInitialLoad = false) => {
     if (isLoadingRef.current) {
-      console.log('⚠️  [COMPARE] Already loading, skipping...')
       return
     }
     
@@ -340,64 +334,53 @@ export default function ComparePage() {
     }
     
     try {
-      console.log('🔄 [COMPARE] Loading new comparison pair...')
+    // If we have a preloaded next pair, use it immediately
+    if (nextPair) {
+      setStartupA(nextPair[0])
+      setStartupB(nextPair[1])
+      setNextPair(null)
       
-      // If we have a preloaded next pair, use it immediately
-      if (nextPair) {
-        console.log('⚡ [COMPARE] Using preloaded pair!')
-        setStartupA(nextPair[0])
-        setStartupB(nextPair[1])
-        setNextPair(null)
-        
-        // Start loading the NEXT pair in background
-        fetchComparisonPair(currentUserId).then(pair => {
-          if (pair) {
-            console.log('✅ [COMPARE] Preloaded next pair in background')
-            setNextPair(pair)
-          }
-        }).catch(err => {
-          console.error('❌ [COMPARE] Error preloading next pair:', err)
-        })
-      } else {
-        // No preloaded pair, fetch one now
-        const pair = await fetchComparisonPair(currentUserId)
+      // Start loading the NEXT pair in background
+      fetchComparisonPair(currentUserId).then(pair => {
         if (pair) {
-          console.log('✅ [COMPARE] Loaded comparison:', {
-            startupA: pair[0].name,
-            startupB: pair[1].name,
-          })
-          setStartupA(pair[0])
-          setStartupB(pair[1])
-          
-          // Preload the next one
-          fetchComparisonPair(currentUserId).then(nextPair => {
-            if (nextPair) {
-              console.log('✅ [COMPARE] Preloaded next pair')
-              setNextPair(nextPair)
-            }
+          setNextPair(pair)
+        }
+        }).catch(err => {
+          console.error('Error preloading next pair:', err)
+      })
+    } else {
+      // No preloaded pair, fetch one now
+      const pair = await fetchComparisonPair(currentUserId)
+      if (pair) {
+        setStartupA(pair[0])
+        setStartupB(pair[1])
+        
+        // Preload the next one
+        fetchComparisonPair(currentUserId).then(nextPair => {
+          if (nextPair) {
+            setNextPair(nextPair)
+          }
           }).catch(err => {
-            console.error('❌ [COMPARE] Error preloading next pair:', err)
-          })
+            console.error('Error preloading next pair:', err)
+        })
         } else {
-          console.warn('⚠️  [COMPARE] No pair returned from fetchComparisonPair')
           if (isInitialLoad) {
             setLoadingMessage('Not enough startups available')
           }
         }
       }
     } catch (error) {
-      console.error('❌ [COMPARE] Error in loadComparisonWithUserId:', error)
+      console.error('Error in loadComparisonWithUserId:', error)
       if (isInitialLoad) {
         setLoadingMessage('Failed to load comparison')
-      }
+    }
     } finally {
-      if (isInitialLoad) setLoading(false)
-      isLoadingRef.current = false
+    if (isInitialLoad) setLoading(false)
+    isLoadingRef.current = false
     }
   }
 
   const handleComparisonComplete = () => {
-    console.log('✅ [COMPARE] Comparison complete, loading next pair...')
     if (user) {
       loadComparisonWithUserId(user.id, false)
     }

@@ -42,14 +42,19 @@ export async function GET(request: NextRequest) {
     )
 
     // Exchange the code for a session
-    const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
+    const { data: sessionData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
     
-    if (!exchangeError) {
+    if (exchangeError) {
+      console.error('Exchange error:', exchangeError)
+      return NextResponse.redirect(new URL(`/auth?error=auth_failed`, request.url))
+    }
+    
+    if (sessionData?.session) {
       // Successfully authenticated, redirect to app
       return NextResponse.redirect(new URL(next, request.url))
     } else {
-      console.error('Exchange error:', exchangeError)
-      return NextResponse.redirect(new URL(`/auth?error=auth_failed`, request.url))
+      console.error('No session in exchange response')
+      return NextResponse.redirect(new URL(`/auth?error=no_session`, request.url))
     }
   }
 

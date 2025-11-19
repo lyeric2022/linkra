@@ -8,6 +8,8 @@ import { NextResponse, type NextRequest } from 'next/server'
  * - Handles auth redirects
  */
 export async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname
+
   let supabaseResponse = NextResponse.next({
     request: {
       headers: request.headers,
@@ -36,22 +38,27 @@ export async function middleware(request: NextRequest) {
   // This is the key difference - middleware refreshes sessions automatically
   const {
     data: { user },
+    error: authError
   } = await supabase.auth.getUser()
+
+  if (authError) {
+    console.error('getUser() error:', authError)
+  }
 
   // Protected routes - redirect to /auth if not authenticated
   const protectedRoutes = ['/compare', '/portfolio', '/submit']
   const isProtectedRoute = protectedRoutes.some((route) =>
-    request.nextUrl.pathname.startsWith(route)
+    pathname.startsWith(route)
   )
 
   if (isProtectedRoute && !user) {
     const redirectUrl = new URL('/auth', request.url)
-    redirectUrl.searchParams.set('redirect', request.nextUrl.pathname)
+    redirectUrl.searchParams.set('redirect', pathname)
     return NextResponse.redirect(redirectUrl)
   }
 
   // Redirect authenticated users away from auth page
-  if (request.nextUrl.pathname === '/auth' && user) {
+  if (pathname === '/auth' && user) {
     const redirectTo = request.nextUrl.searchParams.get('redirect') || '/compare'
     return NextResponse.redirect(new URL(redirectTo, request.url))
   }

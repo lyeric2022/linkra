@@ -10,7 +10,7 @@ import { useAuthContext } from '@/lib/contexts/AuthContext'
  * - Pages don't need to check auth - they can assume user exists if on protected route
  */
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { loading } = useAuthContext()
+  const { loading, user } = useAuthContext()
   const pathname = usePathname()
   
   // Public routes that don't need auth

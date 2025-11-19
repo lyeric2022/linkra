@@ -12,16 +12,23 @@ export default function Auth() {
     setMessage('')
 
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const redirectTo = `${window.location.origin}/auth/callback`
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo,
         },
       })
       
-      if (error) throw error
+      if (error) {
+        console.error('OAuth sign in error:', error)
+        throw error
+      }
+      
       // User will be redirected to Google, so we don't need to do anything else here
     } catch (error: any) {
+      console.error('Exception during sign in:', error)
       setMessage(error.message || 'An error occurred')
       setLoading(false)
     }

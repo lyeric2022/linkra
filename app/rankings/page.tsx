@@ -50,14 +50,10 @@ export default function RankingsPage() {
 
   useEffect(() => {
     let mounted = true
-
+    
     // Initial load with mounted guard
     if (mounted) {
-      loadRankings(true).finally(() => {
-        if (mounted) {
-          console.log('📊 [RANKINGS] Initial load completed')
-        }
-      })
+      loadRankings(true)
       loadStats()
     }
     
@@ -96,8 +92,6 @@ export default function RankingsPage() {
   const loadRankings = async (isInitialLoad = false) => {
     const startTime = performance.now()
     try {
-      console.log('📊 [RANKINGS] Starting to load rankings...', isInitialLoad ? '(initial)' : '(refresh)')
-      
       // Only show main loading spinner on initial load, not on refreshes
       if (isInitialLoad) {
         setLoading(true)
@@ -111,7 +105,6 @@ export default function RankingsPage() {
       if (!isInitialLoad) {
         const cachedStartups = cache.get<Startup[]>(CACHE_KEYS.STARTUPS)
         if (cachedStartups && cachedStartups.length > 0) {
-          console.log('⚡ [RANKINGS] Using cached data:', cachedStartups.length, 'startups')
           setAllStartups(cachedStartups)
           setIsRefreshing(false)
           return
@@ -121,7 +114,6 @@ export default function RankingsPage() {
       // Get all startups with pagination (Supabase has a hard 1000 row limit)
       // Rankings are public - no auth needed
       setLoadingMessage('Getting total count...')
-      console.log('📊 [RANKINGS] Fetching all startups with pagination...')
       
       // First, get total count
       const { count: totalStartupsCount, error: countError } = await supabase
@@ -129,19 +121,16 @@ export default function RankingsPage() {
         .select('*', { count: 'exact', head: true })
       
       if (countError) {
-        console.error('❌ [RANKINGS] Error getting count:', countError)
+        console.error('Error getting count:', countError)
         throw countError
       }
       
-      console.log('📊 [RANKINGS] Total startups in DB:', totalStartupsCount || 0)
       setTotalCount(totalStartupsCount || 0)
       
       // Fetch ALL startups using sequential pagination (Supabase caps at 1000 per query)
       // Sequential is slower but more reliable than parallel
       const pageSize = 1000
       const totalPages = Math.ceil((totalStartupsCount || 0) / pageSize)
-      
-      console.log(`📊 [RANKINGS] Fetching ${totalPages} pages sequentially (${pageSize} per page)...`)
       
       const allStartupsData: any[] = []
       
@@ -151,7 +140,6 @@ export default function RankingsPage() {
         const end = start + pageSize - 1
         
         setLoadingMessage(`Fetching page ${page + 1} of ${totalPages}... (${allStartupsData.length.toLocaleString()} loaded)`)
-        console.log(`📊 [RANKINGS] Fetching page ${page + 1}/${totalPages} (rows ${start}-${end})...`)
         
         const { data: pageData, error: pageError } = await supabase
           .from('startups')
@@ -160,29 +148,18 @@ export default function RankingsPage() {
           .range(start, end)
         
         if (pageError) {
-          console.error(`❌ [RANKINGS] Error fetching page ${page + 1}:`, pageError)
+          console.error(`Error fetching page ${page + 1}:`, pageError)
           throw pageError
         }
         
         if (pageData) {
           allStartupsData.push(...pageData)
-          console.log(`✅ [RANKINGS] Page ${page + 1}/${totalPages} loaded: ${pageData.length} rows (total: ${allStartupsData.length})`)
         }
       }
       
       const startupsData = allStartupsData
-      console.log(`✅ [RANKINGS] Fetched all ${startupsData.length} startups from ${totalPages} pages`)
       
       setLoadingMessage('Processing comparison counts...')
-      
-      console.log('📊 [RANKINGS] Loaded startups:', startupsData.length, 'of', totalStartupsCount || 0, 'total')
-      if (startupsData && startupsData.length > 0) {
-        console.log('📊 [RANKINGS] Sample Elo scores:', {
-          top: startupsData[0]?.elo_rating,
-          mid: startupsData[Math.floor(startupsData.length / 2)]?.elo_rating,
-          bottom: startupsData[startupsData.length - 1]?.elo_rating,
-        })
-      }
 
       // Get all comparisons to count
       const { data: comparisons, error: compError } = await supabase
@@ -190,7 +167,7 @@ export default function RankingsPage() {
         .select('startup_a_id, startup_b_id')
 
       if (compError) {
-        console.warn('⚠️ [RANKINGS] Could not fetch comparison counts:', compError)
+        console.warn('Could not fetch comparison counts:', compError)
       }
 
       // Count comparisons per startup
@@ -212,21 +189,15 @@ export default function RankingsPage() {
       cache.set(CACHE_KEYS.STARTUPS, startupsWithCounts, CACHE_TTL.SHORT)
       
       setAllStartups(startupsWithCounts as Startup[])
-      
-      const totalTime = performance.now() - startTime
-      console.log(`✅ [RANKINGS] Successfully loaded rankings and cached in ${totalTime.toFixed(0)}ms`)
     } catch (error: any) {
-      const totalTime = performance.now() - startTime
-      console.error(`❌ [RANKINGS] Error loading rankings after ${totalTime.toFixed(0)}ms:`, error)
+      console.error('Error loading rankings:', error)
       setError(error?.message || 'Failed to load rankings. Please refresh the page.')
       // Set empty array on error so UI doesn't hang
       setAllStartups([])
       setTotalCount(0)
     } finally {
-      const totalTime = performance.now() - startTime
       setLoading(false)
       setIsRefreshing(false)
-      console.log(`📊 [RANKINGS] Loading complete in ${totalTime.toFixed(0)}ms - loading state set to false`)
     }
   }
 
