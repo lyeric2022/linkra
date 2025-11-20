@@ -20,6 +20,7 @@
     "capture-price-history": "tsx scripts/capture-price-history.ts"
   },
   "dependencies": {
+    "@auth0/nextjs-auth0": "^4.13.1",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.81.1",
     "@types/pg": "^8.15.6",
