@@ -12,7 +12,23 @@ export async function proxy(request: NextRequest) {
 
   // Let Auth0 middleware handle its own routes (/auth/login, /auth/callback, /auth/logout, /auth/me)
   if (pathname.startsWith('/auth/')) {
-    return auth0.middleware(request)
+    try {
+      return await auth0.middleware(request)
+    } catch (error) {
+      console.error('❌ [PROXY] Auth0 middleware error:', error)
+      // Return a proper error response instead of crashing
+      return new NextResponse(
+        JSON.stringify({
+          error: 'Authentication error',
+          message: error instanceof Error ? error.message : 'Unknown error',
+          path: pathname
+        }),
+        {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      )
+    }
   }
 
   // For other routes, check authentication status
