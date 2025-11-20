@@ -20,7 +20,7 @@ export async function proxy(request: NextRequest) {
   let response = NextResponse.next()
 
   try {
-    const session = await auth0.getSession(request, response)
+    const session = await auth0.getSession(request)
     user = session?.user || null
   } catch (error) {
     // User not authenticated
