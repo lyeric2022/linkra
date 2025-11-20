@@ -24,7 +24,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   
   // Public routes that don't need auth
   const publicRoutes = ['/auth', '/rankings', '/leaderboard', '/']
-  const isPublicRoute = publicRoutes.includes(pathname) || pathname.startsWith('/startup/')
+  const isPublicRoute = publicRoutes.includes(pathname) || pathname.startsWith('/startup/') || pathname.startsWith('/auth/')
 
   console.log('🛡️ [AUTH GUARD] Route check:', {
     pathname,

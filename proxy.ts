@@ -1,52 +1,34 @@
-import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { auth0 } from '@/lib/auth0'
 
 /**
  * Proxy for Next.js App Router
- * - Refreshes user sessions automatically (critical for SSR)
+ * - Handles Auth0 authentication routes
  * - Protects routes that require authentication
  * - Handles auth redirects
  */
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
-  let supabaseResponse = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  })
+  // Let Auth0 middleware handle its own routes (/auth/login, /auth/callback, /auth/logout, /auth/me)
+  if (pathname.startsWith('/auth/')) {
+    return auth0.middleware(request)
+  }
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            request.cookies.set(name, value)
-            supabaseResponse.cookies.set(name, value, options)
-          })
-        },
-      },
-    }
-  )
+  // For other routes, check authentication status
+  let user = null
+  let response = NextResponse.next()
 
-  // IMPORTANT: Refresh session if expired - this ensures Server Components get valid sessions
-  // This is the key difference - proxy refreshes sessions automatically
-  const {
-    data: { user },
-    error: authError
-  } = await supabase.auth.getUser()
-
-  if (authError) {
-    console.error('getUser() error:', authError)
+  try {
+    const session = await auth0.getSession(request, response)
+    user = session?.user || null
+  } catch (error) {
+    // User not authenticated
+    user = null
   }
 
   // Protected routes - redirect to /auth if not authenticated
-  const protectedRoutes = ['/compare', '/portfolio', '/submit']
+  const protectedRoutes = ['/compare', '/portfolio', '/submit', '/settings']
   const isProtectedRoute = protectedRoutes.some((route) =>
     pathname.startsWith(route)
   )
@@ -63,7 +45,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL(redirectTo, request.url))
   }
 
-  return supabaseResponse
+  return response
 }
 
 export const config = {
