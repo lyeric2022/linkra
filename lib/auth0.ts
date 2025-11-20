@@ -29,6 +29,8 @@ AUTH0_CLIENT_SECRET='your-client-secret'
   throw new Error(`Missing Auth0 environment variables: ${missingVars.join(', ')}`);
 }
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 export const auth0 = new Auth0Client({
   routes: {
     login: '/auth/login',
@@ -37,12 +39,12 @@ export const auth0 = new Auth0Client({
   },
   session: {
     cookie: {
-      // Ensure cookies work in production (HTTPS)
       sameSite: 'lax',
-      // Only set secure in production
-      ...(process.env.NODE_ENV === 'production' && {
-        secure: true
-      }),
+      secure: isProduction,
     },
+  },
+  transactionCookie: {
+    sameSite: 'lax',
+    secure: isProduction,
   },
 });
