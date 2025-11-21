@@ -32,19 +32,30 @@ AUTH0_CLIENT_SECRET='your-client-secret'
 const isProduction = process.env.NODE_ENV === 'production';
 
 export const auth0 = new Auth0Client({
+  // Explicitly pass configuration (don't rely on auto-detection)
+  domain: process.env.AUTH0_DOMAIN!,
+  clientId: process.env.AUTH0_CLIENT_ID!,
+  clientSecret: process.env.AUTH0_CLIENT_SECRET!,
+  secret: process.env.AUTH0_SECRET!,
+  appBaseUrl: process.env.APP_BASE_URL!,
+
   routes: {
     login: '/auth/login',
     logout: '/auth/logout',
     callback: '/auth/callback',
   },
+
   session: {
     cookie: {
       sameSite: 'lax',
       secure: isProduction,
+      path: '/',
     },
   },
+
   transactionCookie: {
     sameSite: 'lax',
     secure: isProduction,
+    path: '/',
   },
 });
