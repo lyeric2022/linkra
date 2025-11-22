@@ -89,6 +89,17 @@ CREATE TABLE IF NOT EXISTS public.startup_submissions (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Startup price history table (for tracking ELO/price changes over time)
+CREATE TABLE IF NOT EXISTS public.startup_price_history (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  startup_id UUID NOT NULL REFERENCES public.startups(id) ON DELETE CASCADE,
+  elo_rating NUMERIC(10, 2) NOT NULL,
+  price NUMERIC(10, 2) NOT NULL,
+  recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  hour_timestamp TIMESTAMPTZ NOT NULL, -- Rounded to hour for uniqueness constraint
+  UNIQUE(startup_id, hour_timestamp) -- One record per startup per hour
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_startups_rank ON public.startups(global_rank);
 CREATE INDEX IF NOT EXISTS idx_startups_elo ON public.startups(elo_rating);
@@ -101,6 +112,8 @@ CREATE INDEX IF NOT EXISTS idx_trades_startup ON public.trades(startup_id);
 CREATE INDEX IF NOT EXISTS idx_submissions_status ON public.startup_submissions(status);
 CREATE INDEX IF NOT EXISTS idx_submissions_created_at ON public.startup_submissions(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_submissions_submitted_by ON public.startup_submissions(submitted_by);
+CREATE INDEX IF NOT EXISTS idx_price_history_startup ON public.startup_price_history(startup_id);
+CREATE INDEX IF NOT EXISTS idx_price_history_timestamp ON public.startup_price_history(hour_timestamp DESC);
 
 -- Row Level Security (RLS) Policies
 
@@ -111,6 +124,7 @@ ALTER TABLE public.pairwise_comparisons ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.holdings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.trades ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.startup_submissions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.startup_price_history ENABLE ROW LEVEL SECURITY;
 
 -- Users: Users can read all, but only update their own
 DROP POLICY IF EXISTS "Users can read all users" ON public.users;
@@ -174,6 +188,15 @@ CREATE POLICY "Anyone can read submissions" ON public.startup_submissions
 DROP POLICY IF EXISTS "Authenticated users can create submissions" ON public.startup_submissions;
 CREATE POLICY "Authenticated users can create submissions" ON public.startup_submissions
   FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+-- Price history: Anyone can read, only authenticated users can insert (typically via cron/API)
+DROP POLICY IF EXISTS "Anyone can read price history" ON public.startup_price_history;
+CREATE POLICY "Anyone can read price history" ON public.startup_price_history
+  FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Service can insert price history" ON public.startup_price_history;
+CREATE POLICY "Service can insert price history" ON public.startup_price_history
+  FOR INSERT WITH CHECK (true); -- Allow inserts from service role key
 
 -- Function to automatically create user record on signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
