@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { supabase } from '@/lib/supabase/client'
+import { usePostHog } from 'posthog-js/react'
 
 interface RollButtonProps {
   userId: string
@@ -10,10 +10,12 @@ interface RollButtonProps {
 }
 
 export default function RollButton({ userId, freeGiftsCount, onRollComplete }: RollButtonProps) {
+  const posthog = usePostHog()
   const [isRolling, setIsRolling] = useState(false)
   const [diceValue, setDiceValue] = useState(1)
   const [result, setResult] = useState<{ startupName: string; shares: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [remainingGifts, setRemainingGifts] = useState(freeGiftsCount)
 
   // Animate dice rolling with linear slowdown
   const animateDice = (onComplete: () => void) => {
@@ -49,7 +51,7 @@ export default function RollButton({ userId, freeGiftsCount, onRollComplete }: R
   }
 
   const handleRoll = async () => {
-    if (freeGiftsCount <= 0) {
+    if (remainingGifts <= 0) {
       setError('No free gifts remaining')
       return
     }
@@ -76,12 +78,27 @@ export default function RollButton({ userId, freeGiftsCount, onRollComplete }: R
       const data = await response.json()
 
       if (!response.ok) {
+        // Track failed roll
+        posthog.capture('roll_failed', {
+          error: data.error,
+          remaining_gifts: freeGiftsCount,
+        })
         throw new Error(data.error || 'Failed to roll')
       }
 
       setResult({
         startupName: data.startup.name,
         shares: data.shares,
+      })
+
+      // Update remaining gifts count
+      setRemainingGifts(data.remainingGifts)
+
+      // Track successful roll (client-side confirmation)
+      posthog.capture('roll_completed_client', {
+        startup_name: data.startup.name,
+        shares: data.shares,
+        remaining_gifts: data.remainingGifts,
       })
 
       // Refresh portfolio after roll
@@ -96,7 +113,6 @@ export default function RollButton({ userId, freeGiftsCount, onRollComplete }: R
 
   // Dice face SVG component
   const DiceFace = ({ value }: { value: number }) => {
-    const dots = []
     const positions: { [key: number]: number[][] } = {
       1: [[50, 50]],
       2: [[25, 25], [75, 75]],
@@ -131,7 +147,7 @@ export default function RollButton({ userId, freeGiftsCount, onRollComplete }: R
     )
   }
 
-  if (freeGiftsCount <= 0) {
+  if (remainingGifts <= 0) {
     return (
       <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-6 text-center border border-gray-200 dark:border-gray-700">
         <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -145,7 +161,7 @@ export default function RollButton({ userId, freeGiftsCount, onRollComplete }: R
     <div className="space-y-4">
       <button
         onClick={handleRoll}
-        disabled={isRolling || freeGiftsCount <= 0}
+        disabled={isRolling || remainingGifts <= 0}
         className={`
           w-full px-6 py-4 rounded-xl font-medium
           transition-all duration-200
@@ -169,7 +185,7 @@ export default function RollButton({ userId, freeGiftsCount, onRollComplete }: R
               <DiceFace value={6} />
             </div>
             <span>Roll for Free Gift</span>
-            <span className="text-xs opacity-70 ml-auto">({freeGiftsCount} left)</span>
+            <span className="text-xs opacity-70 ml-auto">({remainingGifts} left)</span>
           </>
         )}
       </button>

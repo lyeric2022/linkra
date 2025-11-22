@@ -122,8 +122,11 @@ export default function ComparePage() {
       
       const totalStartupsInDb = totalStartupCount || 0
       
-      // If user has seen too many startups, or if there are very few startups total, allow duplicates
-      const allowDuplicates = seenStartupIds.size > 500 || totalStartupsInDb < 10
+      // Only allow duplicates if we've truly run out of unique pairs
+      // Calculate possible unique pairs: n * (n-1) / 2
+      const uniqueStartups = totalStartupsInDb - seenStartupIds.size
+      const possibleUniquePairs = uniqueStartups * (uniqueStartups - 1) / 2
+      const allowDuplicates = possibleUniquePairs < 1
       
       // Check how many startups are available (excluding seen ones)
       let availableCount = 0
@@ -152,45 +155,37 @@ export default function ComparePage() {
       }
 
       setLoadingMessage('Selecting startups to compare...')
-      
-      // Get total count for random selection
-      const randomOffset = Math.floor(Math.random() * Math.max(totalStartupsInDb - 1, 0))
-      
-      let baseStartupQuery = supabase
+
+      // Get a pool of startups and filter out seen ones
+      let candidateQuery = supabase
         .from('startups')
         .select('*')
-        .range(randomOffset, randomOffset)
-        .limit(1)
-      
+        .limit(100) // Get a pool of 100 startups
+
       if (batchFilter && batchFilter !== 'all') {
-        baseStartupQuery = baseStartupQuery.eq('batch', batchFilter)
+        candidateQuery = candidateQuery.eq('batch', batchFilter)
       }
-      
-      const { data: baseStartups, error: baseError } = await baseStartupQuery
-      
-      let baseStartup = baseStartups?.[0]
-      
-      // If base startup is in seen list and we're not allowing duplicates, get another one
-      if (!allowDuplicates && baseStartup && seenStartupIds.has(baseStartup.id)) {
-        // Get a larger pool and filter out seen ones in memory
-        let candidateQuery = supabase
-          .from('startups')
-          .select('*')
-          .limit(200) // Get a larger pool
-        
-        if (batchFilter && batchFilter !== 'all') {
-          candidateQuery = candidateQuery.eq('batch', batchFilter)
-        }
-        
-        const { data: candidateStartups } = await candidateQuery
-        
-        if (candidateStartups && candidateStartups.length > 0) {
-          const availableStartups = candidateStartups.filter(s => !seenStartupIds.has(s.id))
-          if (availableStartups.length > 0) {
-          baseStartup = availableStartups[Math.floor(Math.random() * availableStartups.length)]
-          }
+
+      const { data: candidateStartups, error: baseError } = await candidateQuery
+
+      if (baseError || !candidateStartups || candidateStartups.length === 0) {
+        console.error('❌ [COMPARE] Error fetching startups:', baseError)
+        throw baseError || new Error('No startups found')
+      }
+
+      // Filter out seen startups if not allowing duplicates
+      let availableStartups = candidateStartups
+      if (!allowDuplicates && seenStartupIds.size > 0) {
+        availableStartups = candidateStartups.filter(s => !seenStartupIds.has(s.id))
+
+        // If filtering left us with too few, fall back to all candidates
+        if (availableStartups.length < 2) {
+          availableStartups = candidateStartups
         }
       }
+
+      // Pick a random base startup from available pool
+      let baseStartup = availableStartups[Math.floor(Math.random() * availableStartups.length)]
       
       if (baseError || !baseStartup) {
         console.error('❌ [COMPARE] Error fetching base startup:', baseError)
@@ -199,85 +194,29 @@ export default function ComparePage() {
       
       const baseElo = baseStartup.elo_rating || 1500
       const eloRange = 200 // Match within ±200 Elo points
-      
-      // Get a second startup with similar Elo, excluding seen ones
-      let opponentQuery = supabase
-        .from('startups')
-        .select('*')
-        .neq('id', baseStartup.id) // Don't match with itself
-        .gte('elo_rating', baseElo - eloRange)
-        .lte('elo_rating', baseElo + eloRange)
-        .limit(10) // Get 10 candidates
 
-      if (batchFilter && batchFilter !== 'all') {
-        opponentQuery = opponentQuery.eq('batch', batchFilter)
-      }
-      
-      const { data: similarStartups, error: similarError } = await opponentQuery
-      
-      if (similarError) {
-        console.error('❌ [COMPARE] Error fetching similar startups:', similarError)
-        throw similarError
-      }
-      
-      // Filter out seen startups if not allowing duplicates
-      let filteredSimilarStartups = similarStartups || []
-      if (!allowDuplicates && seenStartupIds.size > 0) {
-        filteredSimilarStartups = filteredSimilarStartups.filter(s => !seenStartupIds.has(s.id))
-      }
-      
-      // Pick a random one from the candidates
-      let randomOpponent = filteredSimilarStartups.length > 0
-        ? filteredSimilarStartups[Math.floor(Math.random() * filteredSimilarStartups.length)]
+      // Filter available startups for similar ELO and not the base startup
+      let similarStartups = availableStartups
+        .filter(s => s.id !== baseStartup.id) // Don't match with itself
+        .filter(s => {
+          const elo = s.elo_rating || 1500
+          return elo >= baseElo - eloRange && elo <= baseElo + eloRange
+        })
+
+      // Pick a random opponent from similar ELO startups
+      let randomOpponent = similarStartups.length > 0
+        ? similarStartups[Math.floor(Math.random() * similarStartups.length)]
         : null
       
-      // If no similar opponent found, get any other startup (excluding seen ones)
+      // Build startup pair
       let startups = [baseStartup]
       if (randomOpponent) {
         startups.push(randomOpponent)
       } else {
-        let fallbackQuery = supabase
-          .from('startups')
-          .select('*')
-          .neq('id', baseStartup.id)
-
-        if (batchFilter && batchFilter !== 'all') {
-          fallbackQuery = fallbackQuery.eq('batch', batchFilter)
-        }
-
-        // Get multiple candidates and filter out seen ones
-        const { data: candidates } = await fallbackQuery.limit(50)
-        
-        if (candidates && candidates.length > 0) {
-          // Filter out seen startups if not allowing duplicates
-          let availableCandidates = candidates
-          if (!allowDuplicates && seenStartupIds.size > 0) {
-            availableCandidates = candidates.filter(s => !seenStartupIds.has(s.id))
-          }
-          
-          if (availableCandidates.length > 0) {
-            const randomCandidate = availableCandidates[Math.floor(Math.random() * availableCandidates.length)]
-          startups.push(randomCandidate)
-        } else {
-            // No available candidates, fall through to use any startup
-          }
-        }
-        
-        // If we still don't have a second startup, get any startup
-        if (startups.length < 2) {
-          // If no candidates found, just use any startup (even if seen)
-          let anyStartupQuery = supabase
-            .from('startups')
-            .select('*')
-            .neq('id', baseStartup.id)
-            .limit(1)
-          
-          if (batchFilter && batchFilter !== 'all') {
-            anyStartupQuery = anyStartupQuery.eq('batch', batchFilter)
-          }
-          
-          const { data: anyStartupData } = await anyStartupQuery.single()
-          if (anyStartupData) startups.push(anyStartupData)
+        // No similar ELO opponent found, pick any other startup from available pool
+        const otherStartups = availableStartups.filter(s => s.id !== baseStartup.id)
+        if (otherStartups.length > 0) {
+          startups.push(otherStartups[Math.floor(Math.random() * otherStartups.length)])
         }
       }
       

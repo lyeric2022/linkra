@@ -3,6 +3,7 @@ import "./globals.css";
 import Nav from "@/components/Nav";
 import { AuthProvider } from "@/lib/contexts/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
+import { PostHogProvider } from "@/lib/contexts/PostHogProvider";
 
 export const metadata: Metadata = {
   title: "Linkra - Startup League Table",
@@ -17,12 +18,14 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <AuthProvider>
-          <AuthGuard>
-            <Nav />
-            {children}
-          </AuthGuard>
-        </AuthProvider>
+        <PostHogProvider>
+          <AuthProvider>
+            <AuthGuard>
+              <Nav />
+              {children}
+            </AuthGuard>
+          </AuthProvider>
+        </PostHogProvider>
       </body>
     </html>
   );

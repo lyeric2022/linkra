@@ -136,7 +136,8 @@ CREATE POLICY "Authenticated users can create startups" ON public.startups
 
 DROP POLICY IF EXISTS "Authenticated users can update startups" ON public.startups;
 CREATE POLICY "Authenticated users can update startups" ON public.startups
-  FOR UPDATE USING (auth.role() = 'authenticated');
+  FOR UPDATE USING (auth.role() = 'authenticated')
+  WITH CHECK (auth.role() = 'authenticated');
 
 -- Comparisons: Users can read all, but only create their own
 DROP POLICY IF EXISTS "Anyone can read comparisons" ON public.pairwise_comparisons;

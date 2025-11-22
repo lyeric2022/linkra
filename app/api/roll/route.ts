@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { PostHog } from 'posthog-node'
 
 // Lazy initialization to avoid build-time errors
 function getSupabaseClient() {
@@ -12,6 +13,18 @@ function getSupabaseClient() {
 
 // Use service role key to bypass RLS for API operations
   return createClient(supabaseUrl, supabaseServiceKey)
+}
+
+// Initialize PostHog for server-side tracking
+function getPostHogClient() {
+  const apiKey = process.env.NEXT_PUBLIC_POSTHOG_KEY
+  const apiHost = process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com'
+
+  if (!apiKey) {
+    return null // PostHog is optional
+  }
+
+  return new PostHog(apiKey, { host: apiHost })
 }
 
 /**
@@ -142,6 +155,23 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`✅ [ROLL] User ${userId.substring(0, 8)}... rolled and got ${sharesToAdd} shares of ${randomStartup.name}`)
+
+    // Track successful roll in PostHog
+    const posthog = getPostHogClient()
+    if (posthog) {
+      posthog.capture({
+        distinctId: userId,
+        event: 'roll_success',
+        properties: {
+          startup_id: randomStartup.id,
+          startup_name: randomStartup.name,
+          shares_granted: sharesToAdd,
+          remaining_gifts: userData.free_gifts_count - 1,
+          was_new_holding: !existingHolding,
+        },
+      })
+      await posthog.shutdown() // Flush events before response
+    }
 
     return NextResponse.json({
       success: true,

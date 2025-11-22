@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { Startup } from '@/lib/types/database'
 import StartupCard from './StartupCard'
 import { supabase } from '@/lib/supabase/client'
@@ -125,22 +125,23 @@ export default function PairwiseComparison({
         startupA: { old: currentEloA.toFixed(1), new: newEloA.toFixed(1), delta: deltaEloA.toFixed(1) },
         startupB: { old: currentEloB.toFixed(1), new: newEloB.toFixed(1), delta: deltaEloB.toFixed(1) }
       })
-      
-      // Update Elo scores in database (only 2 updates)
+
+      // Update Elo scores in database using simple direct update
+      // This ensures winner always gains ELO and loser always loses ELO
       const eloUpdateStart = performance.now()
       const [updateResultA, updateResultB] = await Promise.all([
         supabase
           .from('startups')
           .update({ elo_rating: newEloA })
           .eq('id', startupA.id)
-          .select(),
+          .select('elo_rating'),
         supabase
           .from('startups')
           .update({ elo_rating: newEloB })
           .eq('id', startupB.id)
-          .select()
+          .select('elo_rating')
       ])
-      
+
       // Check for errors
       if (updateResultA.error) {
         console.error('❌ [COMPARE] Error updating Elo for startupA:', updateResultA.error)
@@ -150,13 +151,13 @@ export default function PairwiseComparison({
         console.error('❌ [COMPARE] Error updating Elo for startupB:', updateResultB.error)
         throw updateResultB.error
       }
-      
+
       const eloUpdateTime = performance.now() - eloUpdateStart
       const totalTime = performance.now() - startTime
-      
+
       console.log(`✅ [COMPARE] Elo scores updated in ${eloUpdateTime.toFixed(0)}ms`)
-      console.log(`   Startup A: ${updateResultA.data?.[0]?.elo_rating?.toFixed(0) || 'N/A'}`)
-      console.log(`   Startup B: ${updateResultB.data?.[0]?.elo_rating?.toFixed(0) || 'N/A'}`)
+      console.log(`   Startup A: ${newEloA.toFixed(1)} (delta: ${deltaEloA > 0 ? '+' : ''}${deltaEloA.toFixed(1)})`)
+      console.log(`   Startup B: ${newEloB.toFixed(1)} (delta: ${deltaEloB > 0 ? '+' : ''}${deltaEloB.toFixed(1)})`)
       console.log(`⏱️  [COMPARE] Total update time: ${totalTime.toFixed(0)}ms`)
       
       // Start animation
@@ -164,14 +165,14 @@ export default function PairwiseComparison({
       setAnimationComplete(false)
       setAnimatedEloA(currentEloA)
       setAnimatedEloB(currentEloB)
-      
+
       // Animate both scores
       let completedAnimations = 0
-      
+
       const checkComplete = () => {
         completedAnimations++
         console.log(`🎬 [COMPARE] Animation ${completedAnimations}/2 complete`)
-        
+
         if (completedAnimations === 2) {
           console.log('✅ [COMPARE] Both animations complete! Waiting for user to click Next...')
           // Animation complete - update both states in a single batch to avoid double re-render
@@ -180,7 +181,8 @@ export default function PairwiseComparison({
           // Keep animatedEloA, animatedEloB, deltaA, deltaB visible (don't clear them)
         }
       }
-      
+
+      // Animate to the calculated values
       animateNumber(currentEloA, newEloA, 2000, setAnimatedEloA, checkComplete)
       animateNumber(currentEloB, newEloB, 2000, setAnimatedEloB, checkComplete)
       
