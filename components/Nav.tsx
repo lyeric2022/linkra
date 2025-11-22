@@ -152,7 +152,7 @@ export default function Nav() {
               </div>
             ) : (
               <Link
-                href="/auth"
+                href="/auth/login"
                 className="text-sm text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white"
               >
                 Sign In
@@ -215,7 +215,7 @@ export default function Nav() {
               </div>
             ) : (
               <Link
-                href="/auth"
+                href="/auth/login"
                 className="text-sm text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white"
               >
                 Sign In

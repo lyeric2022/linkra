@@ -16,12 +16,23 @@ function AuthPageContent() {
     const errorParam = searchParams.get('error')
     if (errorParam) {
       setError(errorParam)
+      return // Don't auto-redirect if there's an error
     }
 
     // Middleware handles redirect, but this is a backup
     if (!loading && user) {
       const redirectTo = searchParams.get('redirect') || '/compare'
       router.push(redirectTo)
+      return
+    }
+
+    // If no error and not authenticated, redirect to Auth0 login immediately
+    if (!loading && !user && !errorParam) {
+      const redirectParam = searchParams.get('redirect')
+      const loginUrl = redirectParam
+        ? `/auth/login?returnTo=${encodeURIComponent(redirectParam)}`
+        : '/auth/login'
+      window.location.href = loginUrl
     }
   }, [router, searchParams, user, loading])
 
