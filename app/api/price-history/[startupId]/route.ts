@@ -21,15 +21,39 @@ export async function GET(
 
     const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-    // Get price history for the last 7 days (168 hours)
-    const sevenDaysAgo = new Date()
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+    // Get time range from query parameters (default: 1 day)
+    const url = new URL(request.url)
+    const rangeParam = url.searchParams.get('range') || '1d'
+
+    // Calculate time range
+    const now = new Date()
+    let startTime: Date
+
+    switch (rangeParam) {
+      case '30m':
+        startTime = new Date(now.getTime() - 30 * 60 * 1000)
+        break
+      case '1h':
+        startTime = new Date(now.getTime() - 60 * 60 * 1000)
+        break
+      case '6h':
+        startTime = new Date(now.getTime() - 6 * 60 * 60 * 1000)
+        break
+      case '1d':
+        startTime = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+        break
+      case '1w':
+        startTime = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+        break
+      default:
+        startTime = new Date(now.getTime() - 24 * 60 * 60 * 1000) // Default to 1 day
+    }
 
     const { data: priceHistory, error } = await supabase
       .from('startup_price_history')
       .select('*')
       .eq('startup_id', startupId)
-      .gte('recorded_at', sevenDaysAgo.toISOString())
+      .gte('recorded_at', startTime.toISOString())
       .order('recorded_at', { ascending: true })
 
     if (error) {
@@ -40,6 +64,7 @@ export async function GET(
     return Response.json({
       success: true,
       data: priceHistory || [],
+      range: rangeParam,
     })
   } catch (error: any) {
     console.error('❌ [PRICE-HISTORY] Unexpected error:', error)

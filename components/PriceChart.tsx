@@ -15,18 +15,29 @@ interface PriceChartProps {
   startupId: string
 }
 
+type TimeRange = '30m' | '1h' | '6h' | '1d' | '1w'
+
+const timeRangeOptions: { value: TimeRange; label: string }[] = [
+  { value: '30m', label: '30 Min' },
+  { value: '1h', label: '1 Hour' },
+  { value: '6h', label: '6 Hours' },
+  { value: '1d', label: '1 Day' },
+  { value: '1w', label: '1 Week' },
+]
+
 export default function PriceChart({ startupId }: PriceChartProps) {
   const [priceHistory, setPriceHistory] = useState<PriceHistoryPoint[]>([])
   const [loading, setLoading] = useState(true)
+  const [timeRange, setTimeRange] = useState<TimeRange>('1d')
 
   useEffect(() => {
     loadPriceHistory()
-  }, [startupId])
+  }, [startupId, timeRange])
 
   const loadPriceHistory = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/price-history/${startupId}`)
+      const response = await fetch(`/api/price-history/${startupId}?range=${timeRange}`)
       const data = await response.json()
 
       if (data.success) {
@@ -39,13 +50,25 @@ export default function PriceChart({ startupId }: PriceChartProps) {
     }
   }
 
-  // Format data for chart
+  // Format data for chart with dynamic time formatting based on range
+  const getTimeFormat = (range: TimeRange) => {
+    switch (range) {
+      case '30m':
+      case '1h':
+        return { hour: 'numeric', minute: '2-digit' } as const
+      case '6h':
+        return { hour: 'numeric', minute: '2-digit' } as const
+      case '1d':
+        return { month: 'short', day: 'numeric', hour: 'numeric' } as const
+      case '1w':
+        return { month: 'short', day: 'numeric' } as const
+      default:
+        return { month: 'short', day: 'numeric', hour: 'numeric' } as const
+    }
+  }
+
   const chartData = priceHistory.map(point => ({
-    time: new Date(point.recorded_at).toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-    }),
+    time: new Date(point.recorded_at).toLocaleString('en-US', getTimeFormat(timeRange)),
     price: parseFloat(point.price.toFixed(2)),
     elo: parseFloat(point.elo_rating.toFixed(0)),
     timestamp: point.recorded_at,
@@ -64,11 +87,28 @@ export default function PriceChart({ startupId }: PriceChartProps) {
   if (chartData.length === 0) {
     return (
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-          Price History
-        </h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Price History
+          </h3>
+          <div className="flex gap-1">
+            {timeRangeOptions.map(option => (
+              <button
+                key={option.value}
+                onClick={() => setTimeRange(option.value)}
+                className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                  timeRange === option.value
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="text-center text-gray-500 dark:text-gray-400 py-8">
-          No price history available yet. Check back in an hour!
+          No price history available yet. Price data is captured every 5 minutes.
         </div>
       </div>
     )
@@ -83,9 +123,26 @@ export default function PriceChart({ startupId }: PriceChartProps) {
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
       <div className="mb-4">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-          Price History (Last 7 Days)
-        </h3>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Price History
+          </h3>
+          <div className="flex gap-1">
+            {timeRangeOptions.map(option => (
+              <button
+                key={option.value}
+                onClick={() => setTimeRange(option.value)}
+                className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                  timeRange === option.value
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="flex items-center gap-4 text-sm">
           <div>
             <span className="text-gray-600 dark:text-gray-400">Current: </span>
@@ -139,7 +196,7 @@ export default function PriceChart({ startupId }: PriceChartProps) {
       </ResponsiveContainer>
 
       <p className="text-xs text-gray-500 dark:text-gray-400 mt-4 text-center">
-        Price snapshots captured hourly. Data updates every hour.
+        Price snapshots captured every 5 minutes. Data updates automatically.
       </p>
     </div>
   )

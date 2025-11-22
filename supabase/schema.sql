@@ -96,8 +96,8 @@ CREATE TABLE IF NOT EXISTS public.startup_price_history (
   elo_rating NUMERIC(10, 2) NOT NULL,
   price NUMERIC(10, 2) NOT NULL,
   recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  hour_timestamp TIMESTAMPTZ NOT NULL, -- Rounded to hour for uniqueness constraint
-  UNIQUE(startup_id, hour_timestamp) -- One record per startup per hour
+  interval_timestamp TIMESTAMPTZ NOT NULL, -- Rounded to 5-minute intervals for uniqueness constraint
+  UNIQUE(startup_id, interval_timestamp) -- One record per startup per 5-minute interval
 );
 
 -- Indexes for performance
@@ -113,7 +113,7 @@ CREATE INDEX IF NOT EXISTS idx_submissions_status ON public.startup_submissions(
 CREATE INDEX IF NOT EXISTS idx_submissions_created_at ON public.startup_submissions(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_submissions_submitted_by ON public.startup_submissions(submitted_by);
 CREATE INDEX IF NOT EXISTS idx_price_history_startup ON public.startup_price_history(startup_id);
-CREATE INDEX IF NOT EXISTS idx_price_history_timestamp ON public.startup_price_history(hour_timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_price_history_timestamp ON public.startup_price_history(interval_timestamp DESC);
 
 -- Row Level Security (RLS) Policies
 
