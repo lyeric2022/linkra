@@ -129,7 +129,12 @@ export default function StartupCard({
               href={startup.website.startsWith('http') ? startup.website : `https://${startup.website}`}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                const url = startup.website?.startsWith('http') ? startup.website : `https://${startup.website}`
+                window.open(url, '_blank', 'noopener,noreferrer')
+              }}
               className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

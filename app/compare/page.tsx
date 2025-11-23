@@ -220,6 +220,18 @@ export default function ComparePage() {
         }
       }
       
+      // Ensure we have exactly 2 different startups
+      if (startups.length !== 2) {
+        console.error('❌ [COMPARE] Could not find 2 different startups')
+        return null
+      }
+
+      // Verify they are actually different
+      if (startups[0].id === startups[1].id) {
+        console.error('❌ [COMPARE] Same startup selected twice:', startups[0].id)
+        return null
+      }
+
       // Shuffle the pair so base isn't always on left
       if (Math.random() > 0.5) {
         startups = [startups[1], startups[0]]
@@ -320,6 +332,9 @@ export default function ComparePage() {
   }
 
   const handleComparisonComplete = () => {
+    // Clear preloaded pair to ensure we fetch fresh data with updated ELO
+    setNextPair(null)
+
     if (user) {
       loadComparisonWithUserId(user.id, false)
     }

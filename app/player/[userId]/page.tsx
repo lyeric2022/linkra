@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { Holding, Startup, User, Trade } from '@/lib/types/database'
 import Link from 'next/link'
@@ -10,8 +10,7 @@ import { useAuthContext } from '@/lib/contexts/AuthContext'
 
 export default function PlayerProfilePage() {
   const params = useParams()
-  const router = useRouter()
-  const userId = params.userId as string
+  const userName = decodeURIComponent(params.userId as string) // userId param is actually the username
   const { user: currentUser } = useAuthContext() // Use single source of truth
   const [user, setUser] = useState<User | null>(null)
   const [holdings, setHoldings] = useState<(Holding & { startup: Startup })[]>([])
@@ -22,12 +21,12 @@ export default function PlayerProfilePage() {
   useEffect(() => {
     loadProfile()
     loadUserRank()
-  }, [userId])
+  }, [userName])
 
   const loadUserRank = async () => {
     try {
       // Get all users with their portfolio values
-      const { data: users } = await supabase.from('users').select('id, virtual_currency')
+      const { data: users } = await supabase.from('users').select('id, name, virtual_currency')
       
       if (!users) return
 
@@ -68,8 +67,8 @@ export default function PlayerProfilePage() {
         return valueB - valueA
       })
 
-      // Find rank
-      const rank = sortedUsers.findIndex(u => u.id === userId) + 1
+      // Find rank by name
+      const rank = sortedUsers.findIndex(u => u.name === userName) + 1
       setUserRank(rank > 0 ? rank : null)
     } catch (error) {
       console.error('Error loading user rank:', error)
@@ -80,44 +79,48 @@ export default function PlayerProfilePage() {
     try {
       setLoading(true)
 
-      // Get user info
+      // Get user info by name
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('*')
-        .eq('id', userId)
-        .single()
+        .eq('name', userName)
+        .maybeSingle()
 
       if (userError) throw userError
+      if (!userData) {
+        console.error('User not found:', userName)
+        return
+      }
       setUser(userData)
 
-      // Get holdings with startup details
+      // Get holdings with startup details (use actual user id from userData)
       const { data: holdingsData, error: holdingsError } = await supabase
         .from('holdings')
         .select(`
           *,
-          startup:startups(*)
+          startup:startup_id(*)
         `)
-        .eq('user_id', userId)
+        .eq('user_id', userData.id)
         .order('created_at', { ascending: false })
 
       if (holdingsError) throw holdingsError
       setHoldings((holdingsData as any) || [])
 
-      // Get trades with startup details
+      // Get trades with startup details (use actual user id from userData)
       const { data: tradesData, error: tradesError } = await supabase
         .from('trades')
         .select(`
           *,
-          startup:startups(*)
+          startup:startup_id(*)
         `)
-        .eq('user_id', userId)
+        .eq('user_id', userData.id)
         .order('created_at', { ascending: false })
         .limit(50) // Limit to recent 50 trades
 
       if (tradesError) throw tradesError
       setTrades((tradesData as any) || [])
-    } catch (error) {
-      console.error('Error loading profile:', error)
+    } catch (error: any) {
+      console.error('Error loading profile:', error?.message || error)
     } finally {
       setLoading(false)
     }
@@ -170,7 +173,7 @@ export default function PlayerProfilePage() {
   const gainLoss = totalValue - initialValue
   const gainLossPercent = (gainLoss / initialValue) * 100
 
-  const isCurrentUser = currentUser?.id === userId
+  const isCurrentUser = currentUser?.id === user?.id
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">

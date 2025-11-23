@@ -7,6 +7,10 @@ const __dirname = dirname(__filename)
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Enable instrumentation hook for background services
+  experimental: {
+    instrumentationHook: true,
+  },
   // Explicitly set Turbopack root to current directory to avoid lockfile detection issues
   turbopack: {
     root: __dirname,

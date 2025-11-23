@@ -248,7 +248,7 @@ export default function LeaderboardPage() {
                           </td>
                           <td className="px-6 py-4">
                             <Link
-                              href={`/player/${entry.user.id}`}
+                              href={`/player/${encodeURIComponent(entry.user.name || entry.user.email.split('@')[0])}`}
                               className="flex items-center gap-3 hover:opacity-80 transition-opacity"
                             >
                               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center text-sm font-semibold text-gray-700 dark:text-gray-300 flex-shrink-0">
