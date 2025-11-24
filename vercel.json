@@ -6,12 +6,6 @@
   "regions": ["iad1"],
   "env": {
     "NODE_ENV": "production"
-  },
-  "crons": [
-    {
-      "path": "/api/price-history/capture",
-      "schedule": "*/5 * * * *"
-    }
-  ]
+  }
 }
 
